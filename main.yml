@@ -27,20 +27,26 @@ spec:
               mountPath: /uploads
           livenessProbe:
             httpGet:
-              path: /
+              path: /nginx/health
               port: 8081
             initialDelaySeconds: 10
             periodSeconds: 5
         - name: app
-          image: alpacked/test-task
+          image: vepl/alpacked-test-task
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
           volumeMounts:
-            - name: app-storage
+            - name: debug-task-pvc
               mountPath: /app/data
             - name: debug-task-pvc
-              mountPath: /app/uploads
+              mountPath: /uploads
       volumes:
         - name: nginx-config
           configMap:
@@ -61,16 +67,23 @@ data:
         listen 8081;
  
         location / {
-            proxy_pass http://app:8080;
+            proxy_pass http://localhost:8080;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
  
         location /uploads {
-            return 200;
-            root /uploads;
+            alias /uploads;
+            autoindex on;
+            index off;
         }
+
+        location /nginx/health {
+            return 200 'OK';
+            add_header Content-Type text/plain;
+        }
+
     }
 ---
 apiVersion: v1
